@@ -1,0 +1,36 @@
+{
+  "name": "@moltbot/napcat",
+  "version": "2026.1.27-beta.1",
+  "type": "module",
+  "description": "Moltbot Napcat OneBot v11 channel plugin",
+  "moltbot": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "channel": {
+      "id": "napcat",
+      "label": "Napcat",
+      "selectionLabel": "Napcat (OneBot v11)",
+      "docsPath": "/channels/napcat",
+      "docsLabel": "napcat",
+      "blurb": "OneBot v11 via Napcat; private messages only.",
+      "order": 85,
+      "quickstartAllowFrom": true
+    },
+    "install": {
+      "npmSpec": "@moltbot/napcat",
+      "localPath": ".",
+      "defaultChoice": "npm"
+    }
+  },
+  "dependencies": {
+    "ws": "^8.19.0",
+    "zod": "^4.3.6"
+  },
+  "peerDependencies": {
+    "moltbot": ">=2026.1.0"
+  },
+  "devDependencies": {
+    "moltbot": ">=2026.1.0"
+  }
+}
