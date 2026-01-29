@@ -6,6 +6,7 @@ import {
   deleteAccountFromConfigSection,
   formatPairingApproveHint,
   setAccountEnabledInConfigSection,
+  stripMarkdown,
   type ChannelAccountSnapshot,
   type ChannelPlugin,
   type MoltbotConfig,
@@ -298,6 +299,15 @@ async function handlePrivateMessage(params: {
   const mediaSummary = bodyText ? "" : describeMediaSummary(parsedMessage.mediaTypes);
   const combinedText = bodyText || mediaSummary;
   const commandText = parsedMessage.text.trim();
+  if (parsedMessage.mediaUrls.length > 0) {
+    params.log?.info?.(
+      `napcat inbound media: sender=${senderId} types=${parsedMessage.mediaTypes.join(",") || "unknown"} urls=${parsedMessage.mediaUrls.join(",")}`,
+    );
+  } else if (rawMessage.includes("[CQ:image") || rawMessage.includes("[CQ:record") || rawMessage.includes("[CQ:video")) {
+    params.log?.warn?.(
+      `napcat inbound media not parsed: sender=${senderId} raw_message=${rawMessage.slice(0, 200)}`,
+    );
+  }
 
   const dmPolicy = params.account.config.dmPolicy ?? "open";
   const configAllowFrom = normalizeAllowList(params.account.config.allowFrom ?? []);
@@ -410,6 +420,14 @@ async function handlePrivateMessage(params: {
     accountId: route.accountId,
   });
 
+  const sanitizeNapcatText = (text: string): string => {
+    if (!text) return "";
+    const withoutTables = core.channel.text.convertMarkdownTables(text, tableMode);
+    const noMarkdown = stripMarkdown(withoutTables);
+    // Napcat/QQ doesn't support HTML tags; strip any leftover tags.
+    return noMarkdown.replace(/<[^>]+>/g, "");
+  };
+
   const sendTextChunks = async (text: string) => {
     const chunks = core.channel.text.chunkTextWithMode(text, textLimit, chunkMode);
     const candidates = chunks.length > 0 ? chunks : [text];
@@ -419,7 +437,7 @@ async function handlePrivateMessage(params: {
         cfg: params.cfg,
         accountId: route.accountId,
         to,
-        text: chunk,
+        text: sanitizeNapcatText(chunk),
       });
       params.statusSink?.({ lastOutboundAt: Date.now() });
     }
@@ -433,7 +451,7 @@ async function handlePrivateMessage(params: {
       deliver: async (payload: ReplyPayload) => {
         const mediaUrls =
           payload.mediaUrls ?? (payload.mediaUrl ? [payload.mediaUrl] : []);
-        const text = core.channel.text.convertMarkdownTables(payload.text ?? "", tableMode);
+        const text = sanitizeNapcatText(payload.text ?? "");
         if (mediaUrls.length === 0) {
           await sendTextChunks(text);
           return;
